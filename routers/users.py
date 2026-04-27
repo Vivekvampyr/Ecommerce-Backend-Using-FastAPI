@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from auth import hash_password, verify_password, create_access_token, get_current_user
 import models
+from schemas import UserRegister,UserResponse,Token
 
 router = APIRouter(prefix='/users',tags=['Users'])
 
@@ -21,16 +22,17 @@ def remove_user(user_id: int, db: Session = Depends(get_db)):
 
 
 # FOR PRODUCTION USE
-@router.post("/register")
-def register(email: str,password: str,db: Session = Depends(get_db)):
-    if db.query(models.User).filter(models.User.email == email).first():
+@router.post("/register", response_model=UserResponse)
+def register(data: UserRegister,db: Session = Depends(get_db)):
+    if db.query(models.User).filter(models.User.email == data.emaill).first():
         raise HTTPException(status_code=400,detail="Email already registered")
-    user = models.User(email=email,hashed_password=hash_password(password))
+    user = models.User(email=data.email,hashed_password=hash_password(data.password))
     db.add(user)
     db.commit()
-    return {"msg": "User Created"}
+    db.refresh(user)
+    return user
 
-@router.post("/token")
+@router.post("/token", response_model=Token)
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == form_data.username).first()
     if not user or not verify_password(form_data.password, user.hashed_password):
@@ -38,9 +40,9 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     token = create_access_token(data={"sub": user.email})
     return {"access_token": token,"token_type":"bearer"}
 
-@router.get("/me")
+@router.get("/me",response_model=UserResponse)
 def get_me(current_user: models.User = Depends(get_current_user)):
-    return{"email": current_user.email,"is_admin":current_user.is_admin}
+    return current_user
 
 @router.post("/register/admin")
 def register_admin(email: str, password: str, admin: bool, db: Session = Depends(get_db)):
