@@ -1,6 +1,13 @@
-from sqlalchemy import Column,Integer,String,Boolean,Float,ForeignKey
+from sqlalchemy import Column,Integer,String,Boolean,Float,ForeignKey,Enum
 from sqlalchemy.orm import relationship
 from database import Base
+import enum
+
+class OrderStatus(str, enum.Enum):
+    pending = "pending"
+    paid = "paid"
+    shipped = "shipped"
+    cancelled = "cancelled"
 
 class User(Base):
     __tablename__ = "users"
@@ -35,6 +42,7 @@ class Order(Base):
     id = Column(Integer,primary_key=True,index=True)
     user_id = Column(Integer,ForeignKey("users.id"))
     total_price = Column(Float)
+    status = Column(Enum(OrderStatus),default=OrderStatus.pending)
     owner = relationship("User",back_populates="orders")
     items = relationship("OrderItem",back_populates="order")
 

@@ -1,5 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field
 from typing import List
+from models import OrderStatus
 
 # ─── User ───────────────────────────────────────────────────
 
@@ -60,6 +61,10 @@ class OrderResponse(BaseModel):
     id: int
     user_id: int
     total_price: float
+    status: OrderStatus
     items: List[OrderItemResponse]
     class Config:
         from_attributes = True
+
+class OrderStatusUpdate(BaseModel):
+    status: OrderStatus
