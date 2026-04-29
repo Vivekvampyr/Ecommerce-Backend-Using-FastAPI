@@ -1,4 +1,4 @@
-from sqlalchemy import Column,Integer,String,Boolean,Float,ForeignKey,Enum
+from sqlalchemy import Column,Integer,String,Boolean,Float,ForeignKey,Enum, DateTime
 from sqlalchemy.orm import relationship
 from database import Base
 import enum
@@ -8,6 +8,11 @@ class OrderStatus(str, enum.Enum):
     paid = "paid"
     shipped = "shipped"
     cancelled = "cancelled"
+
+
+class DiscountType(str, enum.Enum):     # ← new
+    percentage = "percentage"           # e.g. 20% off
+    fixed      = "fixed"                # e.g. ₹100 off
 
 class User(Base):
     __tablename__ = "users"
@@ -37,11 +42,26 @@ class Cart(Base):
     owner = relationship("User", back_populates="cart_items")
     product = relationship("Product", back_populates="cart_items")
 
+class Coupon(Base):                                         # ← new
+    __tablename__ = "coupons"
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String, unique=True, index=True)          # e.g. "SAVE20"
+    discount_type = Column(Enum(DiscountType))              # percentage or fixed
+    discount_value = Column(Float)                          # 20.0 or 100.0
+    min_order_amount = Column(Float, default=0.0)           # minimum cart total to apply
+    max_uses = Column(Integer, default=None)                # None = unlimited
+    used_count = Column(Integer, default=0)
+    is_active = Column(Boolean, default=True)
+    expires_at = Column(DateTime, nullable=True)            # None = never expires
+
+
 class Order(Base):
     __tablename__ = "orders"
     id = Column(Integer,primary_key=True,index=True)
     user_id = Column(Integer,ForeignKey("users.id"))
     total_price = Column(Float)
+    discount_amount = Column(Float, default=0.0)
+    coupon_code = Column(String, nullable=True)
     status = Column(Enum(OrderStatus),default=OrderStatus.pending)
     owner = relationship("User",back_populates="orders")
     items = relationship("OrderItem",back_populates="order")

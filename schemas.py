@@ -1,6 +1,7 @@
 from pydantic import BaseModel, EmailStr, Field
-from typing import List
-from models import OrderStatus
+from typing import List, Optional
+from models import OrderStatus, DiscountType
+from datetime import datetime
 
 # ─── User ───────────────────────────────────────────────────
 
@@ -44,9 +45,35 @@ class CartItemResponse(BaseModel):
     id: int
     product_id: int
     quantity: int
-    product: ProductResponse           # nested — shows full product details
+    product: ProductResponse
     class Config:
         from_attributes = True
+
+# ─── Coupon ─────────────────────────────────────────────────
+
+class CouponCreate(BaseModel):
+    code: str = Field(min_length=3, max_length=20)
+    discount_type: DiscountType
+    discount_value: float = Field(gt=0)
+    min_order_amount: float = Field(default=0.0, ge=0)
+    max_uses: Optional[int] = None                      # None = unlimited
+    expires_at: Optional[datetime] = None               # None = never expires
+
+class CouponResponse(BaseModel):
+    id: int
+    code: str
+    discount_type: DiscountType
+    discount_value: float
+    min_order_amount: float
+    max_uses: Optional[int]
+    used_count: int
+    is_active: bool
+    expires_at: Optional[datetime]
+    class Config:
+        from_attributes = True
+
+class ApplyCoupon(BaseModel):
+    code: str                                           # user sends this at checkout
 
 # ─── Order ──────────────────────────────────────────────────
 
@@ -61,6 +88,8 @@ class OrderResponse(BaseModel):
     id: int
     user_id: int
     total_price: float
+    discount_amount: float                              # ← new
+    coupon_code: Optional[str]                         # ← new
     status: OrderStatus
     items: List[OrderItemResponse]
     class Config:
