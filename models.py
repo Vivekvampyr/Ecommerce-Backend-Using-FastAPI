@@ -19,8 +19,10 @@ class User(Base):
 
     id = Column(Integer,primary_key=True,index=True)
     email = Column(String,unique=True,index=True)
-    hashed_password = Column(String,nullable=False)
+    hashed_password = Column(String,nullable=True) # for OAuth users, this can be null
     is_admin = Column(Boolean,default=False)
+    google_id = Column(String,unique=True,nullable=True) # for Google OAuth users
+    avatar = Column(String,nullable=True) # URL to profile picture
     orders = relationship("Order",back_populates="owner")
     cart_items = relationship("Cart",back_populates="owner")
 

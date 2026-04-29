@@ -13,6 +13,7 @@ class UserResponse(BaseModel):
     id: int
     email: EmailStr
     is_admin: bool
+    avatar: Optional[str] = None
     class Config:
         from_attributes = True
 

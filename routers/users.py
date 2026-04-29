@@ -5,7 +5,7 @@ from database import get_db
 from auth import hash_password, verify_password, create_access_token, get_current_user
 import models
 from schemas import UserRegister,UserResponse,Token
-from utils.limiter import limiter
+# from utils.limiter import limiter
 
 router = APIRouter(prefix='/users',tags=['Users'])
 
@@ -25,9 +25,9 @@ def remove_user(user_id: int, db: Session = Depends(get_db)):
 # FOR PRODUCTION USE
 # 5 registeration per hour per ip
 @router.post("/register", response_model=UserResponse)
-@limiter.limit("5/hour")
+# @limiter.limit("5/hour")
 def register(data: UserRegister,db: Session = Depends(get_db)):
-    if db.query(models.User).filter(models.User.email == data.emaill).first():
+    if db.query(models.User).filter(models.User.email == data.email).first():
         raise HTTPException(status_code=400,detail="Email already registered")
     user = models.User(email=data.email,hashed_password=hash_password(data.password))
     db.add(user)
@@ -37,9 +37,15 @@ def register(data: UserRegister,db: Session = Depends(get_db)):
 
 # 10 attempts per minute per ip
 @router.post("/token", response_model=Token)
-@limiter.limit("10/minute")
+# @limiter.limit("10/minute")
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == form_data.username).first()
+    # ← handle OAuth-only accounts explicitly
+    if user and user.hashed_password is None:
+        raise HTTPException(
+            status_code=400,
+            detail="This account uses Google login. Please sign in with Google."
+        )
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=401,detail="Invalid Credentials")
     token = create_access_token(data={"sub": user.email})
