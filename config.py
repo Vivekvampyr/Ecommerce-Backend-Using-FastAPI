@@ -8,6 +8,9 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRET: str
     GOOGLE_REDIRECT_URI: str = "http://localhost:8000/auth/google/callback"
 
+    RAZORPAY_KEY_ID: str
+    RAZORPAY_KEY_SECRET: str                    
+
     class Config:
         env_file = ".env"
 

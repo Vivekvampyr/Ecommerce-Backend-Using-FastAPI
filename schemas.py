@@ -1,7 +1,32 @@
 from pydantic import BaseModel, EmailStr, Field
 from typing import List, Optional
-from models import OrderStatus, DiscountType
+from models import OrderStatus, DiscountType, PaymentStatus
 from datetime import datetime
+
+# ─── Payment ────────────────────────────────────────────────
+
+class PaymentInitResponse(BaseModel):
+    razorpay_order_id: str
+    amount: float                   # in paise (INR × 100)
+    currency: str
+    order_id: int                   # our internal order id
+    key_id: str                     # frontend needs this to open Razorpay popup
+
+class PaymentVerifyRequest(BaseModel):
+    razorpay_order_id: str
+    razorpay_payment_id: str
+    razorpay_signature: str
+
+class PaymentResponse(BaseModel):
+    id: int
+    order_id: int
+    razorpay_order_id: str
+    razorpay_payment_id: Optional[str]
+    amount: float
+    currency: str
+    status: PaymentStatus
+    class Config:
+        from_attributes = True
 
 # ─── User ───────────────────────────────────────────────────
 
@@ -93,6 +118,7 @@ class OrderResponse(BaseModel):
     coupon_code: Optional[str]                         # ← new
     status: OrderStatus
     items: List[OrderItemResponse]
+    payment: Optional[PaymentResponse] = None
     class Config:
         from_attributes = True
 

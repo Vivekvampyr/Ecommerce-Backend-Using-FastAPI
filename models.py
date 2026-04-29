@@ -14,6 +14,12 @@ class DiscountType(str, enum.Enum):     # ← new
     percentage = "percentage"           # e.g. 20% off
     fixed      = "fixed"                # e.g. ₹100 off
 
+class PaymentStatus(str, enum.Enum):   
+    created  = "created"
+    paid     = "paid"
+    failed   = "failed"
+    refunded = "refunded"
+
 class User(Base):
     __tablename__ = "users"
 
@@ -67,6 +73,7 @@ class Order(Base):
     status = Column(Enum(OrderStatus),default=OrderStatus.pending)
     owner = relationship("User",back_populates="orders")
     items = relationship("OrderItem",back_populates="order")
+    payment = relationship("Payment", back_populates="order",uselist=False)
 
 class OrderItem(Base):                                          
     __tablename__ = "order_items"
@@ -77,3 +84,14 @@ class OrderItem(Base):
     price_at_purchase = Column(Float)
     order = relationship("Order", back_populates="items")
 
+class Payment(Base):                                       
+    __tablename__ = "payments"
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer, ForeignKey("orders.id"), unique=True)
+    razorpay_order_id = Column(String, unique=True)         # from Razorpay
+    razorpay_payment_id = Column(String, nullable=True)     # filled after payment
+    razorpay_signature = Column(String, nullable=True)      # for verification
+    amount = Column(Float)                                  # in INR
+    currency = Column(String, default="INR")
+    status = Column(Enum(PaymentStatus), default=PaymentStatus.created)
+    order = relationship("Order", back_populates="payment")
