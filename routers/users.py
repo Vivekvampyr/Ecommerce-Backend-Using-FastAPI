@@ -5,6 +5,7 @@ from database import get_db
 from auth import hash_password, verify_password, create_access_token, get_current_user
 import models
 from schemas import UserRegister,UserResponse,Token
+from utils.limiter import limiter
 
 router = APIRouter(prefix='/users',tags=['Users'])
 
@@ -22,7 +23,9 @@ def remove_user(user_id: int, db: Session = Depends(get_db)):
 
 
 # FOR PRODUCTION USE
+# 5 registeration per hour per ip
 @router.post("/register", response_model=UserResponse)
+@limiter.limit("5/hour")
 def register(data: UserRegister,db: Session = Depends(get_db)):
     if db.query(models.User).filter(models.User.email == data.emaill).first():
         raise HTTPException(status_code=400,detail="Email already registered")
@@ -32,7 +35,9 @@ def register(data: UserRegister,db: Session = Depends(get_db)):
     db.refresh(user)
     return user
 
+# 10 attempts per minute per ip
 @router.post("/token", response_model=Token)
+@limiter.limit("10/minute")
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == form_data.username).first()
     if not user or not verify_password(form_data.password, user.hashed_password):
