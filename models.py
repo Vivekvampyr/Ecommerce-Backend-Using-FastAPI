@@ -1,5 +1,6 @@
-from sqlalchemy import Column,Integer,String,Boolean,Float,ForeignKey,Enum, DateTime
+from sqlalchemy import Column,Integer,String,Boolean,Float,ForeignKey,Enum, DateTime, Text
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 from database import Base
 import enum
 
@@ -31,6 +32,7 @@ class User(Base):
     avatar = Column(String,nullable=True) # URL to profile picture
     orders = relationship("Order",back_populates="owner")
     cart_items = relationship("Cart",back_populates="owner")
+    reviews = relationship("Review",back_populates="author")
 
 class Category(Base):
     __tablename__ = "categories"
@@ -50,6 +52,7 @@ class Product(Base):
     category_id = Column(Integer,ForeignKey("categories.id"),nullable=True)
     category = relationship("Category",back_populates="products")
     cart_items = relationship("Cart",back_populates="product")
+    reviews = relationship("Review",back_populates="product")
 
 class Cart(Base):                                                   
     __tablename__ = "cart"
@@ -105,3 +108,16 @@ class Payment(Base):
     currency = Column(String, default="INR")
     status = Column(Enum(PaymentStatus), default=PaymentStatus.created)
     order = relationship("Order", back_populates="payment")
+
+class Review(Base):                                                 # ← new
+    __tablename__ = "reviews"
+    id = Column(Integer, primary_key=True, index=True)
+    product_id = Column(Integer, ForeignKey("products.id"))
+    user_id = Column(Integer, ForeignKey("users.id"))
+    rating = Column(Integer)                                        # 1 to 5
+    title = Column(String, nullable=True)                           # short headline
+    body = Column(Text, nullable=True)                              # full review text
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    product = relationship("Product", back_populates="reviews")
+    author = relationship("User", back_populates="reviews")

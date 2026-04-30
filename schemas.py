@@ -59,6 +59,48 @@ class CategoryResponse(BaseModel):
     class Config:
         from_attributes = True
 
+# ─── Review ─────────────────────────────────────────────────
+
+class ReviewCreate(BaseModel):
+    rating: int = Field(ge=1, le=5)             # strictly 1-5 stars
+    title: Optional[str] = Field(default=None, max_length=100)
+    body: Optional[str] = Field(default=None, max_length=2000)
+
+class ReviewUpdate(BaseModel):
+    rating: Optional[int] = Field(default=None, ge=1, le=5)
+    title: Optional[str] = Field(default=None, max_length=100)
+    body: Optional[str] = Field(default=None, max_length=2000)
+
+class ReviewAuthor(BaseModel):                  # nested in ReviewResponse
+    id: int
+    email: str
+    avatar: Optional[str] = None
+    class Config:
+        from_attributes = True
+
+class ReviewResponse(BaseModel):
+    id: int
+    product_id: int
+    user_id: int
+    rating: int
+    title: Optional[str]
+    body: Optional[str]
+    created_at: datetime
+    updated_at: datetime
+    author: ReviewAuthor                        # shows who wrote it
+    class Config:
+        from_attributes = True
+
+class ProductRatingSummary(BaseModel):          # aggregated stats for a product
+    product_id: int
+    average_rating: float
+    total_reviews: int
+    five_star: int
+    four_star: int
+    three_star: int
+    two_star: int
+    one_star: int
+
 # ─── Product ────────────────────────────────────────────────
 
 class ProductCreate(BaseModel):
@@ -83,6 +125,8 @@ class ProductResponse(BaseModel):
     stock: int
     category_id: Optional[int]
     category: Optional[CategoryResponse] = None
+    average_rating: Optional[float] = None    
+    total_reviews: Optional[int] = None 
     class Config:
         from_attributes = True
 

@@ -6,7 +6,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from database import engine, Base
-from routers import shopping, users,cart,orders,coupons,google_auth,payments,categories
+from routers import shopping, users,cart,orders,coupons,google_auth,payments,categories,reviews
 from starlette.middleware.sessions import SessionMiddleware
 from config import settings
 
@@ -40,5 +40,6 @@ app.include_router(coupons.router)
 app.include_router(google_auth.router)
 app.include_router(payments.router)
 app.include_router(categories.router)
+app.include_router(reviews.router)
 
 

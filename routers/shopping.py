@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from typing import List, Optional
 from database import get_db
-from auth import get_current_user, require_admin
+from auth import require_admin
 from schemas import ProductCreate, ProductResponse, ProductUpdate
-from models import Product, Category
+from models import Product, Category, Review
 
 router = APIRouter(prefix="/shopping", tags=["Shopping"])
 
@@ -21,12 +21,12 @@ def list_products(
     in_stock: Optional[bool] = Query(None, description="Only show in-stock items"),
 
     # ─── Sorting ────────────────────────────────────────────
-    sort_by: Optional[str] = Query("id", enum=["id", "price", "name"], description="Sort field"),
-    order: Optional[str] = Query("asc", enum=["asc", "desc"], description="Sort direction"),
+    sort_by: Optional[str] = Query("id", enum=["id", "price", "name"]),
+    order: Optional[str] = Query("asc", enum=["asc", "desc"]),
 
     # ─── Pagination ─────────────────────────────────────────
-    page: int = Query(1, ge=1, description="Page number"),
-    limit: int = Query(10, ge=1, le=100, description="Items per page"),
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=1, le=100),
 
     db: Session = Depends(get_db)
 ):
@@ -57,29 +57,44 @@ def list_products(
 
     # Sorting
     sort_column = getattr(Product, sort_by, Product.id)
-    if order == "desc":
-        query = query.order_by(sort_column.desc())
-    else:
-        query = query.order_by(sort_column.asc())
+    query = query.order_by(sort_column.desc() if order == "desc" else sort_column.asc())
 
     # Pagination
-    offset = (page - 1) * limit
-    products = query.offset(offset).limit(limit).all()
+    products = query.offset((page - 1) * limit).limit(limit).all()
+
+    # ─── Attach avg rating + total reviews to each product ──
+    for product in products:
+        stats = db.query(
+            func.avg(Review.rating),
+            func.count(Review.id)
+        ).filter(Review.product_id == product.id).first()
+        product.average_rating = round(float(stats[0]), 1) if stats[0] else 0.0
+        product.total_reviews = stats[1] if stats[1] else 0
 
     return products
 
-# Get single product
+# ─── Get single product ─────────────────────────────────────
+
 @router.get("/products/{product_id}", response_model=ProductResponse)
 def get_product(product_id: int, db: Session = Depends(get_db)):
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
+
+    # Attach rating stats
+    stats = db.query(
+        func.avg(Review.rating),
+        func.count(Review.id)
+    ).filter(Review.product_id == product.id).first()
+    product.average_rating = round(float(stats[0]), 1) if stats[0] else 0.0
+    product.total_reviews = stats[1] if stats[1] else 0
+
     return product
 
-# Admin — add product
+# ─── Admin — add product ────────────────────────────────────
+
 @router.post("/products", response_model=ProductResponse)
 def add_product(data: ProductCreate, db: Session = Depends(get_db), admin=Depends(require_admin)):
-    # Validate category exists if provided
     if data.category_id:
         category = db.query(Category).filter(Category.id == data.category_id).first()
         if not category:
@@ -94,14 +109,26 @@ def add_product(data: ProductCreate, db: Session = Depends(get_db), admin=Depend
     db.add(product)
     db.commit()
     db.refresh(product)
+
+    # New product has no reviews yet
+    product.average_rating = 0.0
+    product.total_reviews = 0
+
     return product
 
-# Admin — edit product
+# ─── Admin — edit product ───────────────────────────────────
+
 @router.patch("/products/{product_id}", response_model=ProductResponse)
-def update_product(product_id: int, data: ProductUpdate, db: Session = Depends(get_db), admin=Depends(require_admin)):
+def update_product(
+    product_id: int,
+    data: ProductUpdate,
+    db: Session = Depends(get_db),
+    admin=Depends(require_admin)
+):
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
+
     if data.category_id:
         category = db.query(Category).filter(Category.id == data.category_id).first()
         if not category:
@@ -113,9 +140,19 @@ def update_product(product_id: int, data: ProductUpdate, db: Session = Depends(g
 
     db.commit()
     db.refresh(product)
+
+    # Reattach rating stats after update
+    stats = db.query(
+        func.avg(Review.rating),
+        func.count(Review.id)
+    ).filter(Review.product_id == product.id).first()
+    product.average_rating = round(float(stats[0]), 1) if stats[0] else 0.0
+    product.total_reviews = stats[1] if stats[1] else 0
+
     return product
 
-# Admin — delete product
+# ─── Admin — delete product ─────────────────────────────────
+
 @router.delete("/products/{product_id}")
 def delete_product(product_id: int, db: Session = Depends(get_db), admin=Depends(require_admin)):
     product = db.query(Product).filter(Product.id == product_id).first()
