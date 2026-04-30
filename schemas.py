@@ -46,18 +46,43 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
+# ─── Category ───────────────────────────────────────────────
+
+class CategoryCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=50)
+    description: Optional[str] = None
+
+class CategoryResponse(BaseModel):
+    id: int
+    name: str
+    description: Optional[str]
+    class Config:
+        from_attributes = True
+
 # ─── Product ────────────────────────────────────────────────
 
 class ProductCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
+    description: Optional[str] = None
     price: float = Field(gt=0)
     stock: int = Field(ge=0)
+    category_id: Optional[int] = None
+
+class ProductUpdate(BaseModel):                        # ← new — for editing products
+    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    description: Optional[str] = None
+    price: Optional[float] = Field(default=None, gt=0)
+    stock: Optional[int] = Field(default=None, ge=0)
+    category_id: Optional[int] = None
 
 class ProductResponse(BaseModel):
     id: int
     name: str
+    description: Optional[str]
     price: float
     stock: int
+    category_id: Optional[int]
+    category: Optional[CategoryResponse] = None
     class Config:
         from_attributes = True
 
